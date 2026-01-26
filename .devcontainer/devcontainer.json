@@ -1,0 +1,45 @@
+{
+  "name": "Neural Emoji Lab",
+  "dockerFile": "../Dockerfile",
+
+  // Configure tool-specific properties
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.python"
+        }
+      }
+    }
+  },
+
+  // Forward ports for the Express server
+  "forwardPorts": [3000],
+
+  // Use 'postCreateCommand' to run commands after the container is created
+  "postCreateCommand": "pip install --no-cache-dir -r requirements.txt || true",
+
+  // Set environment variables
+  "remoteEnv": {
+    "NODE_ENV": "development"
+  },
+
+  // Run as non-root user
+  "remoteUser": "node",
+
+  // Keep container running
+  "overrideCommand": true
+}

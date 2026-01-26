@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🧬 Neural Emoji Lab</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        color: #00ffcc;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: rgba(10, 10, 10, 0.8);
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 800px;
+        width: 100%;
+        box-shadow: 0 8px 32px rgba(0, 255, 204, 0.1);
+        border: 1px solid rgba(0, 255, 204, 0.2);
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #333;
+      }
+
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: 1px;
+      }
+
+      .emoji-count {
+        font-size: 12px;
+        color: #666;
+        font-weight: normal;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+      }
+
+      button {
+        background: #00ffcc;
+        color: #000;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        background: #00e6b8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 255, 204, 0.3);
+      }
+
+      button.secondary {
+        background: #222;
+        color: #fff;
+        border: 1px solid #444;
+      }
+
+      button.secondary:hover {
+        background: #333;
+        border-color: #666;
+      }
+
+      .workspace {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        gap: 20px;
+      }
+
+      .emoji-selector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .emoji-preview {
+        width: 96px;
+        height: 96px;
+        border: 2px solid #333;
+        border-radius: 12px;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .emoji-preview img {
+        width: 80px;
+        height: 80px;
+      }
+
+      select {
+        width: 150px;
+        background: #111;
+        color: #aaa;
+        border: 1px solid #333;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      select:focus {
+        outline: none;
+        border-color: #00ffcc;
+      }
+
+      .canvas-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+
+      #canvas {
+        width: 256px;
+        height: 256px;
+        image-rendering: pixelated;
+        border: 3px solid #fff;
+        border-radius: 16px;
+        box-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
+        background: #000;
+      }
+
+      .canvas-label {
+        font-size: 10px;
+        color: #666;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+
+      .controls {
+        background: #151515;
+        padding: 25px;
+        border-radius: 12px;
+        border: 1px solid #222;
+      }
+
+      .slider-group {
+        margin-bottom: 20px;
+      }
+
+      .slider-group:last-child {
+        margin-bottom: 0;
+      }
+
+      .slider-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .slider-label-center {
+        font-weight: 600;
+      }
+
+      .slider-label-side {
+        color: #666;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 6px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: #222;
+        border-radius: 3px;
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+      }
+
+      #sliderSil::-webkit-slider-thumb {
+        background: #fff;
+      }
+      #sliderSil::-moz-range-thumb {
+        background: #fff;
+      }
+
+      #sliderTex::-webkit-slider-thumb {
+        background: #00ffcc;
+      }
+      #sliderTex::-moz-range-thumb {
+        background: #00ffcc;
+      }
+
+      #sliderCol::-webkit-slider-thumb {
+        background: #ff00ff;
+      }
+      #sliderCol::-moz-range-thumb {
+        background: #ff00ff;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+
+      input[type="range"]::-moz-range-thumb:hover {
+        transform: scale(1.2);
+      }
+
+      .loading {
+        text-align: center;
+        padding: 60px;
+        font-size: 18px;
+        color: #666;
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid #222;
+        border-top-color: #00ffcc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .workspace {
+          flex-direction: column;
+        }
+
+        #canvas {
+          width: 200px;
+          height: 200px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <div>Loading Neural Network...</div>
+      </div>
+
+      <div id="app" style="display: none">
+        <div class="header">
+          <h1>
+            🧬 Neural Emoji Lab
+            <span class="emoji-count" id="emojiCount"></span>
+          </h1>
+          <div class="button-group">
+            <button onclick="saveImage()">💾 Save</button>
+            <button class="secondary" onclick="randomize()">🎲 Random</button>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="emoji-selector">
+            <div class="emoji-preview">
+              <img id="imgA" src="" alt="Parent A" />
+            </div>
+            <select id="selectA"></select>
+          </div>
+
+          <div class="canvas-container">
+            <canvas id="canvas" width="64" height="64"></canvas>
+            <div class="canvas-label">Neural Composite</div>
+          </div>
+
+          <div class="emoji-selector">
+            <div class="emoji-preview">
+              <img id="imgB" src="" alt="Parent B" />
+            </div>
+            <select id="selectB"></select>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="slider-group">
+            <div class="slider-label">
+              <span class="slider-label-side">A</span>
+              <span class="slider-label-center" style="color: #fff"
+                >SILHOUETTE</span
+              >
+              <span class="slider-label-side">B</span>
+            </div>
+            <input type="range" id="sliderSil" min="0" max="100" value="50" />
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-label">
+              <span class="slider-label-side">A</span>
+              <span class="slider-label-center" style="color: #00ffcc"
+                >TEXTURE</span
+              >
+              <span class="slider-label-side">B</span>
+            </div>
+            <input type="range" id="sliderTex" min="0" max="100" value="50" />
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-label">
+              <span class="slider-label-side">A</span>
+              <span class="slider-label-center" style="color: #ff00ff"
+                >COLOR</span
+              >
+              <span class="slider-label-side">B</span>
+            </div>
+            <input type="range" id="sliderCol" min="0" max="100" value="50" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
