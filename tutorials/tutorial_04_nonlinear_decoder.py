@@ -7,14 +7,32 @@ Learning Machine (ELM) technique with high-gain Tanh activation.
 This fixes the "ghosting" problem from the linear model.
 
 Key Concepts:
-- Hidden layers (expansion into higher dimensions)
-- Non-linear activation (Tanh function)
-- High-gain initialization (forcing hard decisions)
-- Extreme Learning Machine (instant training trick)
+- Hidden layers (expansion into 2048 dimensions)
+- Non-linear activation (Tanh function breaks linear superposition)
+- High-gain initialization (forcing hard decisions, not soft blends)
+- Extreme Learning Machine (freeze W1, train W2 analytically)
+
+This IS a Neural Network:
+- Tutorial 02-03: Single layer, no activation = linear regression
+- Tutorial 04: Two layers + non-linearity = NEURAL NETWORK ✓
+- Still uses closed-form solution for W2 (hybrid approach)
+
+Why Non-Linearity Matters:
+- Linear: decode(A + B) = decode(A) + decode(B) (ghosting)
+- Non-linear: Can learn conditional logic and feature composition
+- Enables: IF condition AND another THEN activate feature
+- Result: True morphing, not just pixel blending
+
+Why We Still Can't Use Full Closed-Form:
+- W1 is random (frozen, never trained) - breaks the ideal optimization
+- W2 is trained analytically (Ridge Regression on hidden layer outputs)
+- For true deep learning: both layers trained via gradient descent
+- Trade-off: Instant training vs optimal solution
 
 Educational Goal:
 Understanding why deep learning works - non-linearity enables true
-feature morphing instead of simple cross-fading.
+feature morphing instead of simple cross-fading. This is where
+"neural networks" actually become intelligent.
 """
 
 import numpy as np
@@ -62,22 +80,32 @@ def load_data():
 
 def tanh_activation(x):
     """
-    Hyperbolic Tangent: The 'decisiveness' function.
+    Hyperbolic Tangent: The 'decisiveness' function that breaks linearity.
+    
+    Why Non-Linearity Is Essential:
+    - Linear: f(A + B) = f(A) + f(B) → only weighted averaging
+    - Non-linear: f(A + B) ≠ f(A) + f(B) → enables feature composition
+    - Without this, gradient descent wouldn't help - still just blending!
     
     Why Tanh instead of ReLU:
-    - ReLU: max(0, x) → deletes negative values
+    - ReLU: max(0, x) → deletes negative values (turns blacks to grey)
     - Tanh: (e^x - e^-x) / (e^x + e^-x) → symmetric [-1, 1]
     
     For image data centered at 0.5:
     - Black pixels are negative (0.0 - 0.5 = -0.5)
     - White pixels are positive (1.0 - 0.5 = +0.5)
-    
-    Tanh preserves both, ReLU would turn all blacks to grey.
+    - Tanh preserves both directions, ReLU would destroy dark features
     
     The Saturation Property:
-    - Small inputs (|x| < 1): Linear-like response
-    - Large inputs (|x| > 2): Saturates at ±1
-    - This creates 'hard' decisions instead of soft blends
+    - Small inputs (|x| < 1): Near-linear response (gradient ≈ 1)
+    - Large inputs (|x| > 2): Saturates at ±1 (gradient ≈ 0)
+    - Creates 'hard' decisions: "This feature is PRESENT" vs "ABSENT"
+    - Prevents soft blending, enables true feature switching
+    
+    Why Can't We Solve This Directly:
+    With Tanh in the equation, no closed-form solution exists:
+    output = tanh(input @ W1) @ W2
+    Can't algebraically isolate W1 and W2 - need iterative optimization
     """
     return np.tanh(x)
 

@@ -7,15 +7,27 @@ they can only perform "cross-fades," not true morphing. By freezing
 interpolation at the 50% midpoint, we reveal the "ghosting" effect.
 
 Key Concepts:
-- Linear superposition (A + B = blended transparency)
-- Midpoint analysis (diagnostic tool)
-- Visual artifacts (what goes wrong with simple models)
-- Why deep learning exists (motivation for non-linearity)
+- Linear superposition (A + B = blended transparency, not morphing)
+- Midpoint analysis (diagnostic tool for understanding limitations)
+- Visual artifacts (ghosting effect from weighted averaging)
+- Why non-linearity is necessary (motivation for deep learning)
+
+The Fundamental Problem:
+- Linear models: decode(A + B) = decode(A) + decode(B)
+- This means 50% blend = 50% transparent A + 50% transparent B
+- No feature recombination, no conditional logic ("IF this AND that")
+- Cannot learn: XOR, hierarchical features, or true morphing
+
+Why Deep Learning Exists:
+Non-linear activation functions break this constraint, enabling:
+- Feature composition ("has eyes AND nose AND mouth = face")
+- True morphing (smooth shape transitions, not just opacity blending)
+- Conditional operations ("IF roundness > 0.5 THEN activate center")
 
 Educational Goal:
 Understanding limitations is as important as understanding capabilities.
 This tutorial proves we have a continuous manifold, but shows why GANs
-and Diffusion Models use non-linear architectures.
+and Diffusion Models MUST use non-linear architectures.
 """
 
 import numpy as np
@@ -82,14 +94,21 @@ def analyze_midpoint(latent_a, latent_b, weight_matrix):
     
     The Reality:
     Due to linear superposition, we get A + B at 50% opacity,
-    creating a "ghosting" effect.
+    creating a "ghosting" effect (two semi-transparent overlays).
     
-    The Math:
-    z_mid = 0.5 * z_a + 0.5 * z_b
-    decode(z_mid) = decode(0.5 * z_a) + decode(0.5 * z_b)
+    Why This Happens (The Math):
+    z_mid = 0.5 * z_a + 0.5 * z_b              (blend latent codes)
+    decode(z_mid) = (0.5 * z_a + 0.5 * z_b) @ W  (linear operation)
+                  = 0.5 * (z_a @ W) + 0.5 * (z_b @ W)  (distributive property)
                   = 0.5 * decode(z_a) + 0.5 * decode(z_b)
     
-    This is literal pixel averaging - a cross-fade, not a morph.
+    This is LITERAL pixel averaging - a cross-fade, not a morph!
+    
+    Why Can't We Solve This Directly?
+    - For non-linear systems (with tanh, relu): No closed-form solution exists
+    - Would need gradient descent (1000s of iterations) to find weights
+    - The non-linearity breaks the linear algebra - can't isolate weights
+    - But the payoff: true feature morphing instead of ghosting
     
     Returns:
         tuple: (image_a, image_mid, image_b, latent_mid)

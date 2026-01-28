@@ -53,6 +53,31 @@ Expected output:
 [HH:MM:SS] 🚀 Training complete! Ready to serve with http-server
 ```
 
+### What's Actually Happening?
+
+**The Honest Truth:**
+
+This trains three **linear decoders** (Ridge Regression), not deep neural networks:
+
+- Each decoder: 512D latent point → matrix multiplication → pixel grid
+- No activation functions = no non-linearity within each decoder
+- Training is analytical (closed-form solution), not iterative (gradient descent)
+- Completes in seconds because it solves equations directly
+
+**What makes it "neural"?**
+
+- Three parallel single-layer perceptrons (technically neural, but simple)
+- Non-linearity comes from COMBINING outputs (multiplication)
+- Demonstrates core principles: latent space, interpolation, disentanglement
+
+**The value:**
+
+- Not compression (network is larger than images at this scale!)
+- Not true morphing (linear models only do weighted averaging)
+- But: Infinite interpolations, independent feature control, educational clarity
+
+For the full story, see [tutorials/NEURAL_NETWORKS_EXPLAINED.md](tutorials/NEURAL_NETWORKS_EXPLAINED.md).
+
 ## Step 3: Serve the Web Application
 
 Use Node's http-server to serve the static files:

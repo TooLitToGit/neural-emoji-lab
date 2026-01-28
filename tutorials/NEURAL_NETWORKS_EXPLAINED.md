@@ -78,7 +78,49 @@ In **Tutorial 02**, you compressed each emoji from **3,072 pixels** down to **12
 1. **Speed:** Working with 128 numbers is faster than 3,072
 2. **Generalization:** Compressed representations remove noise
 3. **Interpolation:** Smooth paths in low dimensions create coherent blends
-4. **Storage:** Storing latent codes is more efficient than storing images
+4. **Storage:** More nuanced than it seems (see below)
+
+#### The Storage Reality: Not Actually Compressed (Yet!)
+
+**Surprising truth:** At small scale, neural network storage is **larger** than just saving images:
+
+```
+Storing 200 emoji images:
+  200 × 12,288 pixels = 2,457,600 numbers (~10 MB as PNGs)
+
+Storing neural network:
+  Latents: 200 × 512        =    102,400
+  W_sil:   512 × 4,096      =  2,097,152
+  W_tex:   512 × 4,096      =  2,097,152
+  W_col:   512 × 12,288     =  6,291,456
+  Total:                     10,588,160 numbers (~42 MB)
+
+  Network is 4-10x LARGER! ❌
+```
+
+**When does it become efficient?**
+
+The weight matrices are **shared** across all emojis:
+
+```
+Cost = (N × 512) + 10,588,160  (fixed overhead)
+           ↑
+    Grows with more emojis
+
+Break-even: ~899 emojis
+With 1M emojis: 23x smaller ✓
+```
+
+**The real value isn't storage - it's generalization:**
+
+- **Images:** 200 fixed emojis
+- **Network:** Infinite emojis via interpolation
+- **Images:** Can't blend or morph
+- **Network:** Smooth transitions between any pair
+- **Images:** No feature control
+- **Network:** Independent control of shape/texture/color
+
+At this scale, you trade storage space for **creative flexibility**.
 
 > 💡 **Tutorial Reference:** See the compression analysis in [Tutorial 02](tutorial_02_linear_decoder.py#L320-340).
 
@@ -112,6 +154,36 @@ Think of it like a sheet of paper curved in 3D space:
 
 > 💡 **Tutorial Reference:** The manifold creation happens in [Tutorial 02](tutorial_02_linear_decoder.py#L89-140) via pseudoinverse.
 
+#### Effective Dimensionality: The 200-Sample Limit
+
+Here's a subtle but important point about your 512-dimensional space:
+
+**With 200 training samples, only ~200 directions are meaningful.**
+
+Think of it through linear algebra:
+
+- Your 200 latent codes form a matrix: 200 × 512
+- The maximum rank of this matrix is min(200, 512) = **200**
+- This means at most 200 linearly independent directions exist
+- The other ~312 dimensions are perpendicular to your data
+
+**Visual analogy:**
+In 3D space, if you only place 2 points, they define a **line** (1D subspace). The third dimension exists but isn't "used" by your data. Similarly, your 200 emojis only occupy a ~200D subspace within the 512D space.
+
+**Practical implications:**
+
+- Interpolation only uses ~200 dimensions
+- The decoder learns to ignore the ~312 "empty" dimensions
+- If you did PCA, you'd find ~200 principal components with variance
+- Extra dimensions provide "breathing room" and regularization benefits
+
+**Why use 512D then?**
+
+- Overparameterization helps generalization (modern ML finding)
+- Ridge regularization prevents overfitting from extra dimensions
+- Future-proof for adding more emojis
+- Computationally convenient (power of 2)
+
 ---
 
 ### The "GPS Coordinates" Analogy
@@ -130,6 +202,32 @@ Just like GPS coordinates uniquely identify locations on Earth, these coordinate
 - Text prompt → Text Encoder → 77×768D coordinates
 - These coordinates describe a location in "image concept space"
 - The decoder renders what exists at those coordinates
+
+#### Understanding Dimensions: Axes, Not Points
+
+A critical clarification: **a dimension is an axis (direction), not a point.**
+
+```
+512 dimensions = 512 perpendicular axes
+Each emoji = 1 point with 512 coordinate values
+
+👻 ghost = [0.23, -1.45, 0.67, ..., 1.52]  ← ONE point, 512 numbers
+🔥 fire  = [-0.88, 2.03, -0.12, ..., 0.45]  ← ONE point, 512 numbers
+
+Not a discrete grid - it's continuous space!
+Any 512 numbers = a valid point
+```
+
+Each dimension is an **unbounded axis** extending from -∞ to +∞, but practically, your latent codes cluster around **[-3, +3]** because they're sampled from a standard normal distribution (mean=0, std=1).
+
+**What each dimension could represent:**
+
+- Dimension 0: might correlate with "redness"
+- Dimension 17: might correlate with "roundness"
+- Dimension 99: might correlate with "smiliness"
+- Most dimensions are entangled (mixed features)
+
+The space is infinite, but your 200 emojis occupy just 200 specific points within it.
 
 ---
 
@@ -175,6 +273,40 @@ Stable Diffusion: Encoder + Decoder
 - Finding similar images (compare latent codes)
 
 > 💡 **Your System:** You manually assigned random latent codes in [Tutorial 02](tutorial_02_linear_decoder.py#L60-90). Production systems train an encoder to learn this mapping.
+
+#### How Decoders Actually Work: Point to Grid
+
+Each decoder is a simple mapping:
+
+```
+512D point → Weight matrix → Pixel grid
+
+W_sil: [512 × 4,096]  →  Maps to 64×64 grayscale
+W_tex: [512 × 4,096]  →  Maps to 64×64 grayscale
+W_col: [512 × 12,288] →  Maps to 64×64×3 RGB
+```
+
+**The math for one pixel:**
+
+```python
+pixel_value = sum(latent[i] * W[i, pixel_index] for i in range(512))
+```
+
+Each pixel is a **weighted sum** of all 512 latent dimensions. The "intelligence" is in which weights are large vs small.
+
+**How the weights encode patterns:**
+
+```
+W_sil[17, center_pixel] = 0.452   # Dimension 17 strongly activates center
+W_sil[23, center_pixel] = -0.231  # Dimension 23 inhibits center
+
+When latent[17] is high AND latent[23] is low:
+  → Center pixel becomes bright (round emoji center)
+```
+
+The weights automatically learn these associations from training data. You never specified what dimension 17 means - the decoder discovered that correlation.
+
+**Key insight:** The weights don't store images, they store **rules** for computing images from latent codes. That's why interpolation works - the rules generalize to codes never seen during training.
 
 ---
 
@@ -228,6 +360,51 @@ This means:
 
 - 50% Ghost + 50% Skull = Two semi-transparent images
 - No feature morphing, just alpha blending
+- Cannot learn: "IF this AND that THEN output feature"
+- Only weighted averaging, no logical operations
+
+**Fundamental limitations:**
+
+- Can't solve XOR problem
+- Can't learn hierarchical features
+- Can't compose patterns ("has eyes AND nose AND mouth = face")
+- Only pixel blending, not true morphing
+
+#### Why Non-Linearity Can't Be Solved Directly
+
+**Linear systems have closed-form solutions:**
+
+```python
+# Your system: output = latent @ W
+W = (X^T X + λI)^-1 X^T Y  # Direct formula! One calculation, done.
+```
+
+**Non-linear systems do not:**
+
+```python
+# With activation: output = tanh(latent @ W1) @ W2
+# No formula exists to solve for W1 and W2 directly!
+# The tanh() breaks linear algebra - can't isolate the weights
+```
+
+**Why iteration is necessary:**
+
+Think of gradient descent like walking blindfolded in mountains:
+
+1. **Feel which way is downhill** (compute gradient)
+2. **Take a small step** (update weights)
+3. **Feel again from new position** (recompute gradient)
+4. **Repeat until you reach valley bottom** (minimize error)
+
+You can't "see" where the bottom is - you only have local information. The gradient tells you which direction to move, but not how far the solution is.
+
+**Why not jump to the answer?**
+
+- The error tells you "you're wrong by this much"
+- The gradient tells you "move in this direction"
+- But this is only **local** information
+- In non-linear landscapes, must take many small steps
+- Each step uses **new** gradient information from new position
 
 #### Production Solution: Deep Networks
 
@@ -409,6 +586,92 @@ Your pseudoinverse method is perfect for learning with small, clean datasets. Pr
 1. Too much data to fit in memory
 2. Data arrives continuously
 3. Need to adjust to evolving datasets
+
+---
+
+### What You Actually Built: Linear Decoders, Not Quite Neural Networks
+
+Let's be honest about what the emoji decoder actually is:
+
+#### The Technical Reality
+
+**Each decoder is Ridge Regression (regularized linear regression):**
+
+```python
+output = latent @ W  # Single matrix multiplication, no activation
+```
+
+**Is this a "neural network"?**
+
+| Criteria              | Your Decoder             | Minimal NN       | Modern Deep NN   |
+| --------------------- | ------------------------ | ---------------- | ---------------- |
+| Layers                | 1                        | 2+               | 10-100+          |
+| Non-linear activation | ❌ No                    | ✓ Yes            | ✓ Yes            |
+| Training method       | Analytical (closed-form) | Gradient descent | SGD + optimizers |
+| Backpropagation       | ❌ Not needed            | ✓ Yes            | ✓ Yes            |
+| **Called "NN"?**      | **Debatable**            | **Technically**  | **Definitely**   |
+
+**More accurate descriptions:**
+
+- "Linear decoder" or "latent variable model"
+- "Single-layer perceptron without activation"
+- "Learned linear transformation from embeddings"
+- "Ridge regression with random latent codes"
+
+#### Where Non-Linearity Enters
+
+While each decoder is linear, the **final combination** adds non-linearity:
+
+```javascript
+// Three linear operations
+silhouette = latent_shape @ W_sil
+texture = latent_texture @ W_tex
+color = latent_color @ W_col
+
+// Non-linear combination!
+final = silhouette * texture * color  ← Element-wise multiplication
+```
+
+The multiplication is non-linear, making the complete system more sophisticated than pure linear regression.
+
+#### Tutorial 04: Where It Becomes a Real Neural Network
+
+If you completed Tutorial 04, **that's** a neural network:
+
+```python
+# Tutorial 02-03: Linear (not really a neural network)
+output = latent @ W
+
+# Tutorial 04: Non-linear (this IS a neural network!) ✓
+hidden = tanh(latent @ W1)  # Non-linear activation
+output = hidden @ W2         # Two layers
+```
+
+**Why this still matters:**
+
+Even though it's "just" linear regression, you've learned:
+
+- ✅ Latent space representation (core concept)
+- ✅ Encoding/decoding architecture
+- ✅ Weight matrices and parameters
+- ✅ Interpolation for generation
+- ✅ Disentanglement principles
+- ✅ Training objectives
+
+These concepts scale directly to real neural networks. The only difference is depth and non-linearity.
+
+#### The Marketing Reality
+
+The term "neural network" has evolved:
+
+- **1960s:** "Perceptron" (your 1-layer linear decoder)
+- **1980s:** "Neural network" (2-3 layers, non-linear)
+- **2010s+:** "Deep learning" (many layers, very non-linear)
+
+Your decoder would've been called a "perceptron" in the 1960s. Today it's better described as "linear regression with learned embeddings."
+
+**Educational value:** 10/10 - Demonstrates all the right principles
+**Technical accuracy:** It's a latent variable model, not quite a neural network
 
 ---
 

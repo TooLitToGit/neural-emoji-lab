@@ -2,19 +2,26 @@
 Tutorial 02: Linear Decoder - Building the Neural Brain
 ========================================================
 
-This tutorial implements a simple linear neural decoder that learns to
+This tutorial implements a simple linear decoder that learns to
 reconstruct emojis from 128-dimensional latent codes. We use the 
 Moore-Penrose pseudoinverse to "solve" for optimal weights in one step.
 
 Key Concepts:
-- Latent space (high-dimensional coordinate system)
-- Linear projection (matrix multiplication)
-- Pseudoinverse (analytical weight solving)
-- Feature compression (3072 pixels → 128 dimensions)
+- Latent space (128 dimensions = 128 axes, each emoji = 1 point)
+- Linear projection (matrix multiplication, no activation)
+- Pseudoinverse (analytical weight solving, no iteration)
+- "Compression" (not really - network is larger than images at this scale!)
+
+The Reality Check:
+- This is LINEAR REGRESSION, not a neural network by modern standards
+- No non-linearity = only weighted averaging (causes "ghosting")
+- Storage: ~26MB network vs ~3MB images for 10 emojis (8x larger!)
+- Real value: INTERPOLATION (infinite blends), not compression
 
 Educational Goal:
-Understanding how neural networks "learn" can be as simple as solving
-a system of linear equations. No backpropagation needed!
+Understanding that neural network "learning" can be as simple as solving
+a system of linear equations. No backpropagation needed! But also
+understanding the limitations of linear models.
 """
 
 import numpy as np
@@ -45,21 +52,33 @@ def initialize_latent_codes(num_emojis, latent_dim, seed=42):
     """
     Generate random latent codes for each emoji.
     
-    Why random initialization:
-    - We need a unique coordinate for each emoji in 128-D space
-    - Random Gaussian distribution spreads them evenly
-    - The seed ensures reproducibility
+    Critical Understanding:
+    - latent_dim = number of AXES (dimensions), not points
+    - Each emoji = ONE point with latent_dim coordinate values
+    - Values sampled from N(0,1), cluster around [-3, +3]
+    - These codes NEVER change after initialization
+    
+    Why random codes work:
+    - We need a UNIQUE coordinate for each emoji in 128-D space
+    - The actual values don't matter - they're just unique IDs
+    - Random Gaussian spreads them evenly (unlikely to be too close)
+    - The decoder learns to associate each code with its pixels
+    
+    Effective Dimensionality:
+    - With 10 emojis, only ~10 directions are "meaningful" (max rank)
+    - The other ~118 dimensions are perpendicular to the data
+    - Extra dimensions provide regularization benefits
     
     Think of this as assigning GPS coordinates to each emoji
     in a 128-dimensional universe.
     
     Args:
         num_emojis: Number of landmarks (10 in our case)
-        latent_dim: Dimensionality of latent space (128)
+        latent_dim: Dimensionality of latent space (128 axes)
         seed: Random seed for reproducibility
     
     Returns:
-        np.ndarray: Shape (num_emojis, latent_dim)
+        np.ndarray: Shape (num_emojis, latent_dim) - 10 points, each with 128 coordinates
     """
     print(f"🧭 Initializing {num_emojis} landmarks in {latent_dim}-D space...")
     
@@ -91,8 +110,20 @@ def train_linear_decoder(latent_codes, pixel_data):
     The Goal:
     Find matrix W such that:  latent_code @ W = pixels
     
-    Traditional AI: Train for hours using gradient descent
-    Our approach: Solve analytically in one step!
+    How Weights Encode Intelligence:
+    - W[dim, pixel] = how much dimension 'dim' affects that pixel
+    - Large positive weight = strong activation
+    - Large negative weight = strong inhibition
+    - Each pixel is a weighted sum of ALL 512 latent dimensions
+    - The weights automatically discover which dimensions correlate with which features
+    
+    Why Closed-Form Solution Works:
+    - LINEAR system has analytical solution (Y = XW can be solved directly)
+    - Non-linear systems (with tanh, relu) cannot be solved this way
+    - Would need gradient descent (1000s of iterations) for non-linear
+    
+    Traditional Deep Learning: Train for hours using gradient descent
+    Our Linear Approach: Solve analytically in one step!
     
     The Math:
     Given: X (latents) and Y (pixels), find W
