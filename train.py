@@ -2,6 +2,21 @@
 """
 Neural Emoji Lab - Training Script
 Generates the latent space and trains Ridge Regression models for emoji synthesis.
+
+What This Script Does:
+- Assigns random 512D latent codes to each emoji (these stay fixed forever)
+- Extracts pixel features: silhouette (shape), texture (details), color (RGB)
+- Trains three linear decoders using Ridge Regression (closed-form solution)
+- Each decoder maps: 512D latent point → pixel grid (no iteration needed!)
+
+Architecture:
+- W_sil: [512 × 4,096] - Maps latent to 64×64 grayscale silhouette
+- W_tex: [512 × 4,096] - Maps latent to 64×64 grayscale texture
+- W_col: [512 × 12,288] - Maps latent to 64×64×3 RGB color
+
+Key Insight: Random latent codes work because Ridge Regression learns to
+associate each unique code with its corresponding pixel patterns. The codes
+are just "addresses" - the weights encode the actual intelligence.
 """
 
 import base64
@@ -17,9 +32,9 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 # --- CONFIGURATION ---
 IMG_SIZE = 64
-LATENT_DIM = 512
-LAMBDA = 5.0
-DECIMALS = 4
+LATENT_DIM = 512  # 512 dimensions = 512 axes, each emoji is ONE point with 512 coordinates
+LAMBDA = 5.0      # Ridge regularization - prevents overfitting when dimensions > samples
+DECIMALS = 4      # Precision for exported JSON (balance between accuracy and file size)
 
 FONT_FILENAME = "NotoColorEmoji.ttf"
 FONT_URL = "https://github.com/googlefonts/noto-emoji/raw/main/fonts/NotoColorEmoji.ttf"
@@ -198,10 +213,27 @@ def create_dataset():
 
 
 def solve_ridge(X, Y, lam=1.0):
-    """Solve Ridge Regression using closed-form solution"""
+    """Solve Ridge Regression using closed-form solution.
+    
+    This computes weights directly using linear algebra - no iteration needed!
+    Formula: W = (X^T X + λI)^-1 X^T Y
+    
+    Why this works:
+    - Linear system has analytical solution (unlike non-linear neural nets)
+    - Ridge regularization (λ) handles case where dimensions > samples
+    - One calculation gives optimal weights, no gradient descent required
+    
+    Args:
+        X: Latent codes (N × 512)
+        Y: Target pixels (N × pixel_count)
+        lam: Regularization strength (prevents overfitting)
+    
+    Returns:
+        W: Weight matrix (512 × pixel_count)
+    """
     XTX = X.T @ X
     idxs = np.diag_indices_from(XTX)
-    XTX[idxs] += lam
+    XTX[idxs] += lam  # Add λ to diagonal for regularization
     return np.linalg.inv(XTX) @ X.T @ Y
 
 
@@ -210,9 +242,13 @@ def train_models(sil, tex, col):
     N = len(sil)
     log(f"🧠 Training {N} items with latent dimension {LATENT_DIM}...")
     
-    # Generate random latent codes
+    # Generate random latent codes (these NEVER change after creation)
+    # Each emoji gets a unique 512D point sampled from standard normal N(0,1)
+    # Values cluster around [-3, +3], each dimension is an unbounded axis
+    # With N=200 samples, only ~200 dimensions are "meaningful" (max rank)
+    # The other ~312 dimensions provide regularization breathing room
     np.random.seed(42)
-    latents = np.random.randn(N, LATENT_DIM)
+    latents = np.random.randn(N, LATENT_DIM)  # Shape: (N, 512)
     
     # Train three separate models
     log(f"📐 Applying Ridge Regression (Lambda={LAMBDA})...")

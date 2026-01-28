@@ -29,10 +29,17 @@ Implement a simple linear neural decoder using the Moore-Penrose pseudoinverse.
 
 **Key Concepts:**
 
-- Latent space (128-dimensional coordinates)
-- Linear projection (matrix multiplication)
-- Pseudoinverse (analytical weight solving)
-- Feature compression (3072 pixels → 128 dimensions)
+- Latent space (128 dimensions = 128 axes, each emoji = 1 point with 128 coordinates)
+- Linear projection (matrix multiplication, no activation function)
+- Pseudoinverse (analytical weight solving - no iteration needed!)
+- "Compression" (3072 pixels → 128 dimensions, but see storage reality below)
+
+**Important Clarifications:**
+
+- This is **linear regression**, not a neural network by modern standards
+- No activation functions = no non-linearity (just weighted averaging)
+- Storage is actually LARGER than images at small scale (see Tutorial 02 analysis)
+- The value is **generation** (infinite interpolations), not compression
 
 **Output:** `tutorial_02_latents.npy`, `tutorial_02_weights.npy`
 

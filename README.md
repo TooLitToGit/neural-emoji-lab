@@ -43,6 +43,8 @@ This will:
 - Train three Ridge Regression models (Silhouette, Texture, Color)
 - Export training data to `public/data/` directory
 
+**What's actually being trained?** Three **linear decoders** (Ridge Regression models), not deep neural networks in the modern sense. Each decoder learns a direct mapping from 512-dimensional latent codes to pixel grids. While technically "neural" (single-layer perceptrons), they're more accurately described as learned linear transformations. The non-linearity comes from how the three outputs are combined (multiplication). See [tutorials/NEURAL_NETWORKS_EXPLAINED.md](tutorials/NEURAL_NETWORKS_EXPLAINED.md) for details.
+
 ### 3. Serve the Web App
 
 Use Node's http-server (or any static file server):

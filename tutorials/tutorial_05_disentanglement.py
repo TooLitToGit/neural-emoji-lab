@@ -7,14 +7,33 @@ learn shape and color independently. This enables "impossible" hybrids
 like a red diamond or blue fire.
 
 Key Concepts:
-- Feature disentanglement (separating concepts)
-- Multi-decoder architecture (parallel specialists)
-- YUV color space (luminance vs. chrominance)
-- Vector arithmetic (mix and match features)
+- Feature disentanglement (separating concepts into independent dimensions)
+- Multi-decoder architecture (parallel specialists, each still linear)
+- YUV color space (luminance vs. chrominance separation)
+- Vector arithmetic (mix and match features freely)
+- Non-linear combination (multiplication of decoder outputs)
+
+The Architecture:
+- Structure decoder: latent_shape @ W_structure → grayscale (linear)
+- Color decoder: latent_color @ W_color → RGB (linear)
+- Final output: structure * color (non-linear combination!)
+
+Why This Works:
+- Each decoder is linear (Ridge Regression, instant training)
+- But COMBINATION via multiplication is non-linear
+- This enables independent control without gradient descent
+- Trade-off: Simple training, but limited to predefined feature splits
+
+Connection to Production AI:
+- StyleGAN: Learns disentangled style codes automatically
+- Stable Diffusion + ControlNet: Separates content from structure
+- Your Tutorial: Manually split features, same core principle
+- Production: Learns what features to split from data
 
 Educational Goal:
-Understanding how modern AI (StyleGAN, Stable Diffusion) achieves
-fine-grained control by learning independent feature representations.
+Understanding how modern AI (StyleGAN, Stable Diffusion, ControlNet)
+achieves fine-grained control by learning independent feature
+representations. You've built the foundation manually!
 """
 
 import numpy as np
